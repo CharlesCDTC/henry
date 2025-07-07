@@ -92,9 +92,10 @@ def send_email_alert(subject, body, to_email):
 def run_henry_bot(api_key, secret, email, live_trading):
     def fetch_demo_data():
         np.random.seed(42)
-        steps = 200
+        steps = 120
         prices = np.cumsum(np.random.randn(steps) * 20 + 20000)
         df = pd.DataFrame({
+            "step": range(steps),
             "timestamp": pd.date_range(end=pd.Timestamp.now(), periods=steps, freq="5min"),
             "open": prices,
             "high": prices + np.random.rand(steps) * 10,
@@ -112,12 +113,14 @@ def run_henry_bot(api_key, secret, email, live_trading):
         df["bb_low"] = bb.bollinger_lband()
         return df.dropna().reset_index(drop=True)
 
+    import altair as alt
+
     try:
         if api_key == "demo" or secret == "demo":
             df = fetch_demo_data()
             st.info("🔧 Running in DEMO mode with synthetic data.")
         else:
-            df = fetch_data(api_key, secret, limit=500)
+            df = fetch_data(api_key, secret, limit=200)
     except Exception as e:
         st.error(f"Data fetch error: {e}")
         return
@@ -126,114 +129,47 @@ def run_henry_bot(api_key, secret, email, live_trading):
         st.warning("Not enough data to simulate trades.")
         return
 
-    env = DummyVecEnv([lambda: HenryTradingEnv(df)])
-    model = PPO("MlpPolicy", env, verbose=0)
-    model.learn(total_timesteps=5000)
+    # Fake actions for demo
+    df["action"] = ""
+    df.loc[10, "action"] = "Buy"
+    df.loc[30, "action"] = "Buy"
+    df.loc[50, "action"] = "Buy"
+    df.loc[20, "action"] = "Sell"
+    df.loc[60, "action"] = "Sell"
+    df.loc[100, "action"] = "Sell"
 
-    obs = env.reset()
-    portfolio = []
-    actions = []
-    prices = []
-    max_steps = len(df) - 2
+    # 💹 Streamlit Altair chart with trade markers
+    base = alt.Chart(df).mark_line(color='black').encode(
+        x=alt.X("step", title="Step"),
+        y=alt.Y("close", title="Price (USD)"),
+        tooltip=["step", "close"]
+    )
 
-    for i in range(max_steps):
-        # Use real model action
-        action, _ = model.predict(obs)
+    buy_markers = alt.Chart(df[df.action == "Buy"]).mark_point(
+        shape="triangle-up", color="green", size=100
+    ).encode(
+        x="step",
+        y="close"
+    )
 
-        # Patch in guaranteed demo trades
-        if i % 40 == 0:
-            action = 1  # Buy
-        elif i % 55 == 0:
-            action = 2  # Sell
+    sell_markers = alt.Chart(df[df.action == "Sell"]).mark_point(
+        shape="triangle-down", color="red", size=100
+    ).encode(
+        x="step",
+        y="close"
+    )
 
-        obs, reward, done, _ = env.step(action)
-        step = env.envs[0].current_step
-        if step >= len(df):
-            break
+    chart = base + buy_markers + sell_markers
+    st.altair_chart(chart, use_container_width=True)
 
-        price = df.iloc[step]['close']
-        value = env.envs[0].usd_balance + env.envs[0].crypto_held * price
-        portfolio.append(value)
-        prices.append(price)
-        actions.append(int(action))
+    # 🧾 Emoji Trade Timeline (text-based)
+    st.subheader("📜 Trade Timeline")
+    for _, row in df[df["action"] != ""].iterrows():
+        if row["action"] == "Buy":
+            st.write(f"Step {row['step']}: 🟢 BUY at ${row['close']:.2f}")
+        elif row["action"] == "Sell":
+            st.write(f"Step {row['step']}: 🔴 SELL at ${row['close']:.2f}")
 
-        st.write(f"Step {step} | Action: {int(action)} | Price: ${price:.2f} | Portfolio: ${value:.2f}")
+    st.success("✅ Demo complete. Trade markers rendered.")
 
-        if live_trading and action in [1, 2]:
-            send_email_alert(
-                f"Henry Trade Action {action}",
-                f"Executed action {action} at price ${price:.2f}",
-                email
-            )
-
-    # Show action breakdown
-    st.write("🔢 Action Summary:", pd.Series(actions).value_counts())
-
-    if len(portfolio) > 1:
-    import matplotlib.pyplot as plt
-
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(prices, label="Price", color="black", linewidth=1.5)
-    ax.plot(portfolio, label="Portfolio", color="blue", linestyle="--", alpha=0.7)
-
-    # Always add a few test markers manually
-    ax.scatter(10, prices[10], color="green", marker="^", s=100, label="Buy")
-    ax.scatter(50, prices[50], color="green", marker="^", s=100)
-    ax.scatter(90, prices[90], color="green", marker="^", s=100)
-
-    ax.scatter(20, prices[20], color="red", marker="v", s=100, label="Sell")
-    ax.scatter(60, prices[60], color="red", marker="v", s=100)
-    ax.scatter(100, prices[100], color="red", marker="v", s=100)
-
-    ax.set_title("Henry's Trades (Demo Markers)")
-    ax.set_xlabel("Step")
-    ax.set_ylabel("USD")
-    ax.legend(loc="upper left")
-    ax.grid(True)
-    st.pyplot(fig)
-
-    st.success(f"✅ Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
-else:
-    st.warning("⚠️ Henry didn't execute enough trades to chart results.")
-
-
-import pandas as pd
-import numpy as np
-import streamlit as st
-import altair as alt
-
-# Fake data
-steps = 100
-price = np.cumsum(np.random.randn(steps)) + 20000
-df = pd.DataFrame({
-    "step": range(steps),
-    "price": price,
-    "action": ["Buy" if i in [10, 30, 50] else "Sell" if i in [20, 60, 80] else "" for i in range(steps)]
-})
-
-# Base line chart
-base = alt.Chart(df).mark_line(color='black').encode(
-    x='step',
-    y='price'
-)
-
-# Buy markers
-buy_points = alt.Chart(df[df.action == "Buy"]).mark_point(
-    shape='triangle-up', color='green', size=100
-).encode(
-    x='step',
-    y='price',
-    tooltip=['step', 'price']
-)
-
-# Sell markers
-sell_points = alt.Chart(df[df.action == "Sell"]).mark_point(
-    shape='triangle-down', color='red', size=100
-).encode(
-    x='step',
-    y='price',
-    tooltip=['step', 'price']
-)
-
-st.altair_chart(base + buy_points + sell_points, use_container_width=True)
 
