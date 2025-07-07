@@ -1,8 +1,0 @@
-streamlit
-openai
-pandas
-numpy
-ta
-ccxt
-gymnasium
-stable-baselines3
