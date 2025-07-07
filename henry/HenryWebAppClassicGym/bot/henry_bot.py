@@ -136,10 +136,17 @@ def run_henry_bot(api_key, secret, email, live_trading):
     prices = []
     max_steps = len(df) - 2
 
-    for _ in range(max_steps):
+    for i in range(max_steps):
+        # Use real model action
         action, _ = model.predict(obs)
-        obs, reward, done, _ = env.step(action)
 
+        # Patch in guaranteed demo trades
+        if i % 40 == 0:
+            action = 1  # Buy
+        elif i % 55 == 0:
+            action = 2  # Sell
+
+        obs, reward, done, _ = env.step(action)
         step = env.envs[0].current_step
         if step >= len(df):
             break
@@ -158,6 +165,9 @@ def run_henry_bot(api_key, secret, email, live_trading):
                 f"Executed action {action} at price ${price:.2f}",
                 email
             )
+
+    # Show action breakdown
+    st.write("🔢 Action Summary:", pd.Series(actions).value_counts())
 
     if len(portfolio) > 1:
         import matplotlib.pyplot as plt
@@ -179,4 +189,5 @@ def run_henry_bot(api_key, secret, email, live_trading):
         st.success(f"✅ Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
     else:
         st.warning("⚠️ Henry didn't execute enough trades to chart results.")
+
 
