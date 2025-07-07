@@ -91,7 +91,7 @@ def send_email_alert(subject, body, to_email):
 
 def run_henry_bot(api_key, secret, email, live_trading):
     try:
-        df = fetch_data(api_key, secret)
+        df = fetch_data(api_key, secret, limit=500)
     except Exception as e:
         st.error(f"Data fetch error: {e}")
         return
@@ -107,11 +107,20 @@ def run_henry_bot(api_key, secret, email, live_trading):
         action, _ = model.predict(obs)
         obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
-        price = df.iloc[env.envs[0].current_step]['close']
+        step = env.envs[0].current_step
+        price = df.iloc[step]['close']
         value = env.envs[0].usd_balance + env.envs[0].crypto_held * price
         portfolio.append(value)
-        if live_trading and action in [1, 2]:
-            send_email_alert(f"Henry Trade Action {action}", f"Executed action {action} at {price}", email)
 
-    st.line_chart(portfolio)
-    st.success(f"Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
+        if live_trading and action in [1, 2]:
+            send_email_alert(
+                f"Henry Trade Action {action}",
+                f"Executed action {action} at price ${price:.2f}",
+                email
+            )
+
+    if len(portfolio) > 1:
+        st.line_chart(portfolio)
+        st.success(f"Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
+    else:
+        st.warning("Henry didn’t complete enough steps to generate a portfolio chart.")
