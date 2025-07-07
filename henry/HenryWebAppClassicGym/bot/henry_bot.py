@@ -90,6 +90,8 @@ def send_email_alert(subject, body, to_email):
         st.error(f"Failed to send email: {e}")
         
 def run_henry_bot(api_key, secret, email, live_trading):
+    import altair as alt
+
     def fetch_demo_data():
         np.random.seed(42)
         steps = 120
@@ -113,8 +115,6 @@ def run_henry_bot(api_key, secret, email, live_trading):
         df["bb_low"] = bb.bollinger_lband()
         return df.dropna().reset_index(drop=True)
 
-    import altair as alt
-
     try:
         if api_key == "demo" or secret == "demo":
             df = fetch_demo_data()
@@ -129,8 +129,11 @@ def run_henry_bot(api_key, secret, email, live_trading):
         st.warning("Not enough data to simulate trades.")
         return
 
-    # Fake actions for demo
+    # ✅ Ensure 'action' column is initialized correctly
     df["action"] = ""
+    df["action"] = df["action"].fillna("").astype(str)
+
+    # ✅ Add demo BUY/SELL markers
     df.loc[10, "action"] = "Buy"
     df.loc[30, "action"] = "Buy"
     df.loc[50, "action"] = "Buy"
@@ -138,31 +141,34 @@ def run_henry_bot(api_key, secret, email, live_trading):
     df.loc[60, "action"] = "Sell"
     df.loc[100, "action"] = "Sell"
 
-    # 💹 Streamlit Altair chart with trade markers
+    # ✅ Altair price line
     base = alt.Chart(df).mark_line(color='black').encode(
-        x=alt.X("step", title="Step"),
-        y=alt.Y("close", title="Price (USD)"),
-        tooltip=["step", "close"]
+        x=alt.X("step:Q", title="Step"),
+        y=alt.Y("close:Q", title="Price (USD)"),
+        tooltip=["step", "close", "action"]
     )
 
-    buy_markers = alt.Chart(df[df.action == "Buy"]).mark_point(
+    # ✅ Buy markers
+    buy_points = alt.Chart(df[df["action"] == "Buy"]).mark_point(
         shape="triangle-up", color="green", size=100
     ).encode(
-        x="step",
-        y="close"
+        x="step:Q",
+        y="close:Q"
     )
 
-    sell_markers = alt.Chart(df[df.action == "Sell"]).mark_point(
+    # ✅ Sell markers
+    sell_points = alt.Chart(df[df["action"] == "Sell"]).mark_point(
         shape="triangle-down", color="red", size=100
     ).encode(
-        x="step",
-        y="close"
+        x="step:Q",
+        y="close:Q"
     )
 
-    chart = base + buy_markers + sell_markers
-    st.altair_chart(chart, use_container_width=True)
+    # ✅ Combine and display chart
+    st.subheader("📈 Henry's Demo Trade Chart")
+    st.altair_chart(base + buy_points + sell_points, use_container_width=True)
 
-    # 🧾 Emoji Trade Timeline (text-based)
+    # ✅ Show trade timeline with emojis
     st.subheader("📜 Trade Timeline")
     for _, row in df[df["action"] != ""].iterrows():
         if row["action"] == "Buy":
@@ -170,6 +176,7 @@ def run_henry_bot(api_key, secret, email, live_trading):
         elif row["action"] == "Sell":
             st.write(f"Step {row['step']}: 🔴 SELL at ${row['close']:.2f}")
 
-    st.success("✅ Demo complete. Trade markers rendered.")
+    st.success("✅ Demo complete. Trade markers and chart rendered.")
+
 
 
