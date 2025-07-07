@@ -132,13 +132,13 @@ def run_henry_bot(api_key, secret, email, live_trading):
 
     obs = env.reset()
     portfolio = []
-    max_steps = len(df) - 2  # run safely through all steps
+    max_steps = len(df) - 2  # Ensure we don't exceed data
 
     for _ in range(max_steps):
         action, _ = model.predict(obs)
         obs, reward, done, _ = env.step(action)
-        step = env.envs[0].current_step
 
+        step = env.envs[0].current_step
         if step >= len(df):
             break
 
