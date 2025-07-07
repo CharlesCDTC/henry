@@ -170,24 +170,31 @@ def run_henry_bot(api_key, secret, email, live_trading):
     st.write("🔢 Action Summary:", pd.Series(actions).value_counts())
 
     if len(portfolio) > 1:
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(prices, label="Price", color="gray")
-        ax.plot(portfolio, label="Portfolio Value", color="blue", alpha=0.7)
+    import matplotlib.pyplot as plt
 
-        for i, act in enumerate(actions):
-            if act == 1:
-                ax.scatter(i, prices[i], color="green", marker="^", label="Buy" if i == 0 else "")
-            elif act == 2:
-                ax.scatter(i, prices[i], color="red", marker="v", label="Sell" if i == 0 else "")
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(prices, label="Price", color="black", linewidth=1.5)
+    ax.plot(portfolio, label="Portfolio", color="blue", linestyle="--", alpha=0.7)
 
-        ax.set_title("Henry's Trades")
-        ax.set_xlabel("Step")
-        ax.set_ylabel("USD")
-        ax.legend()
-        st.pyplot(fig)
-        st.success(f"✅ Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
-    else:
-        st.warning("⚠️ Henry didn't execute enough trades to chart results.")
+    # Always add a few test markers manually
+    ax.scatter(10, prices[10], color="green", marker="^", s=100, label="Buy")
+    ax.scatter(50, prices[50], color="green", marker="^", s=100)
+    ax.scatter(90, prices[90], color="green", marker="^", s=100)
+
+    ax.scatter(20, prices[20], color="red", marker="v", s=100, label="Sell")
+    ax.scatter(60, prices[60], color="red", marker="v", s=100)
+    ax.scatter(100, prices[100], color="red", marker="v", s=100)
+
+    ax.set_title("Henry's Trades (Demo Markers)")
+    ax.set_xlabel("Step")
+    ax.set_ylabel("USD")
+    ax.legend(loc="upper left")
+    ax.grid(True)
+    st.pyplot(fig)
+
+    st.success(f"✅ Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
+else:
+    st.warning("⚠️ Henry didn't execute enough trades to chart results.")
+
 
 
