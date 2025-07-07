@@ -6,6 +6,7 @@ from ta.momentum import RSIIndicator
 from ta.trend import MACD, EMAIndicator
 from ta.volatility import BollingerBands
 from stable_baselines3 import PPO
+from gymnasium import Env, spaces         # ✅ THIS LINE
 from gymnasium.vector import SyncVectorEnv
 import smtplib
 from email.message import EmailMessage
