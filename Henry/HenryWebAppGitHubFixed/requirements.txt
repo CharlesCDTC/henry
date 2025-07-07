@@ -1,8 +1,0 @@
-streamlit
-ccxt
-pandas
-matplotlib
-numpy
-ta
-gymnasium
-stable-baselines3[extra]
