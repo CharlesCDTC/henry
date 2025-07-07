@@ -88,7 +88,7 @@ def send_email_alert(subject, body, to_email):
         st.success("📧 Email alert sent.")
     except Exception as e:
         st.error(f"Failed to send email: {e}")
-
+        
 def run_henry_bot(api_key, secret, email, live_trading):
     def fetch_demo_data():
         np.random.seed(42)
@@ -123,16 +123,18 @@ def run_henry_bot(api_key, secret, email, live_trading):
         return
 
     if len(df) < 20:
-        st.warning("Not enough data to simulate trades. Try increasing the data limit.")
+        st.warning("Not enough data to simulate trades.")
         return
 
     env = DummyVecEnv([lambda: HenryTradingEnv(df)])
     model = PPO("MlpPolicy", env, verbose=0)
-    model.learn(total_timesteps=1000)
+    model.learn(total_timesteps=5000)
 
     obs = env.reset()
     portfolio = []
-    max_steps = len(df) - 2  # Ensure we don't exceed data
+    actions = []
+    prices = []
+    max_steps = len(df) - 2
 
     for _ in range(max_steps):
         action, _ = model.predict(obs)
@@ -145,8 +147,10 @@ def run_henry_bot(api_key, secret, email, live_trading):
         price = df.iloc[step]['close']
         value = env.envs[0].usd_balance + env.envs[0].crypto_held * price
         portfolio.append(value)
+        prices.append(price)
+        actions.append(int(action))
 
-        st.write(f"Step {step}, Action: {int(action)}, Portfolio: ${value:.2f}")
+        st.write(f"Step {step} | Action: {int(action)} | Price: ${price:.2f} | Portfolio: ${value:.2f}")
 
         if live_trading and action in [1, 2]:
             send_email_alert(
@@ -156,8 +160,23 @@ def run_henry_bot(api_key, secret, email, live_trading):
             )
 
     if len(portfolio) > 1:
-        st.line_chart(portfolio)
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.plot(prices, label="Price", color="gray")
+        ax.plot(portfolio, label="Portfolio Value", color="blue", alpha=0.7)
+
+        for i, act in enumerate(actions):
+            if act == 1:
+                ax.scatter(i, prices[i], color="green", marker="^", label="Buy" if i == 0 else "")
+            elif act == 2:
+                ax.scatter(i, prices[i], color="red", marker="v", label="Sell" if i == 0 else "")
+
+        ax.set_title("Henry's Trades")
+        ax.set_xlabel("Step")
+        ax.set_ylabel("USD")
+        ax.legend()
+        st.pyplot(fig)
         st.success(f"✅ Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
     else:
-        st.warning("❗ Not enough steps executed to display a chart.")
+        st.warning("⚠️ Henry didn't execute enough trades to chart results.")
 
