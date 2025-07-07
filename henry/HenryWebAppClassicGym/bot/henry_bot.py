@@ -99,14 +99,15 @@ def run_henry_bot(api_key, secret, email, live_trading):
     env = DummyVecEnv([lambda: HenryTradingEnv(df)])
     model = PPO("MlpPolicy", env, verbose=0)
     model.learn(total_timesteps=1000)
+
     obs = env.reset()
     done = False
     portfolio = []
 
     while not done:
         action, _ = model.predict(obs)
-        obs, reward, terminated, truncated, _ = env.step(action)
-        done = terminated or truncated
+        obs, reward, done, _ = env.step(action)  # ✅ 4 return values for DummyVecEnv
+
         step = env.envs[0].current_step
         price = df.iloc[step]['close']
         value = env.envs[0].usd_balance + env.envs[0].crypto_held * price
