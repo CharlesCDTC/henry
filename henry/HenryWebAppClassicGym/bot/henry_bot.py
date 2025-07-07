@@ -90,10 +90,40 @@ def send_email_alert(subject, body, to_email):
         st.error(f"Failed to send email: {e}")
 
 def run_henry_bot(api_key, secret, email, live_trading):
+    def fetch_demo_data():
+        np.random.seed(42)
+        steps = 200
+        prices = np.cumsum(np.random.randn(steps) * 20 + 20000)
+        df = pd.DataFrame({
+            "timestamp": pd.date_range(end=pd.Timestamp.now(), periods=steps, freq="5min"),
+            "open": prices,
+            "high": prices + np.random.rand(steps) * 10,
+            "low": prices - np.random.rand(steps) * 10,
+            "close": prices + np.random.randn(steps),
+            "volume": np.random.rand(steps) * 100
+        })
+        df["rsi"] = RSIIndicator(close=df["close"], window=14).rsi()
+        macd = MACD(close=df["close"])
+        df["macd"] = macd.macd()
+        df["macd_signal"] = macd.macd_signal()
+        df["ema"] = EMAIndicator(close=df["close"], window=14).ema_indicator()
+        bb = BollingerBands(close=df["close"], window=20, window_dev=2)
+        df["bb_high"] = bb.bollinger_hband()
+        df["bb_low"] = bb.bollinger_lband()
+        return df.dropna().reset_index(drop=True)
+
     try:
-        df = fetch_data(api_key, secret, limit=500)
+        if api_key == "demo" or secret == "demo":
+            df = fetch_demo_data()
+            st.info("🔧 Running in DEMO mode with synthetic data.")
+        else:
+            df = fetch_data(api_key, secret, limit=500)
     except Exception as e:
         st.error(f"Data fetch error: {e}")
+        return
+
+    if len(df) < 20:
+        st.warning("Not enough data to simulate trades. Try increasing the data limit.")
         return
 
     env = DummyVecEnv([lambda: HenryTradingEnv(df)])
@@ -106,12 +136,17 @@ def run_henry_bot(api_key, secret, email, live_trading):
 
     while not done:
         action, _ = model.predict(obs)
-        obs, reward, done, _ = env.step(action)  # ✅ 4 return values for DummyVecEnv
-
+        obs, reward, done, _ = env.step(action)
         step = env.envs[0].current_step
+
+        if step >= len(df):
+            break  # prevent indexing beyond dataframe
+
         price = df.iloc[step]['close']
         value = env.envs[0].usd_balance + env.envs[0].crypto_held * price
         portfolio.append(value)
+
+        st.write(f"Step {step}, Action: {int(action)}, Portfolio: ${value:.2f}")
 
         if live_trading and action in [1, 2]:
             send_email_alert(
@@ -122,6 +157,6 @@ def run_henry_bot(api_key, secret, email, live_trading):
 
     if len(portfolio) > 1:
         st.line_chart(portfolio)
-        st.success(f"Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
+        st.success(f"✅ Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
     else:
-        st.warning("Henry didn’t complete enough steps to generate a portfolio chart.")
+        st.warning("❗ Not enough steps executed to display a chart.")
