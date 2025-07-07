@@ -6,8 +6,8 @@ from ta.momentum import RSIIndicator
 from ta.trend import MACD, EMAIndicator
 from ta.volatility import BollingerBands
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
-from gymnasium import Env, spaces
+from gymnasium.vector import SyncVectorEnv
+env = SyncVectorEnv([lambda: HenryTradingEnv(df)])
 import smtplib
 from email.message import EmailMessage
 import streamlit as st
