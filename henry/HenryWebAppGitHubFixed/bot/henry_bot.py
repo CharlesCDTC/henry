@@ -7,7 +7,7 @@ from ta.trend import MACD, EMAIndicator
 from ta.volatility import BollingerBands
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
-from gym import Env, spaces
+from gymnasium import Env, spaces
 import smtplib
 from email.message import EmailMessage
 import streamlit as st
