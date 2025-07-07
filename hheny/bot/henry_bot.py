@@ -23,7 +23,14 @@ class HenryEnv(Env):
 
     def _next_observation(self):
         row = self.df.iloc[self.current_step]
-        return np.array([row["close"], row["rsi"], row["macd"], row["macd_signal"], self.crypto_held, self.usd_balance], dtype=np.float32)
+        return np.array([
+            row["close"],
+            row["rsi"],
+            row["macd"],
+            row["macd_signal"],
+            self.crypto_held,
+            self.usd_balance
+        ], dtype=np.float32)
 
     def step(self, action):
         row = self.df.iloc[self.current_step]
@@ -103,13 +110,17 @@ def run_henry_bot(symbol, timeframe, live_trading=False, api_key=None, secret=No
     while True:
         action, _ = model.predict(obs)
         obs, reward, done, _, _ = env.step(action)
-        step = env.current_step
+
+        step = env._env.current_step
         if step >= len(df):
             break
+
         df.loc[step, "action"] = "Buy" if action == 1 else "Sell" if action == 2 else ""
-        portfolio.append(env.usd_balance + env.crypto_held * df.loc[step, "close"])
+        portfolio.append(env._env.usd_balance + env._env.crypto_held * df.loc[step, "close"])
+
         if live_trading and action in [1, 2]:
             execute_trade(action, symbol, 0.001, api_key, secret)
+
         if done:
             break
 
