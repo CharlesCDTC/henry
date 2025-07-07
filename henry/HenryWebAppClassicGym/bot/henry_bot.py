@@ -127,18 +127,22 @@ def run_henry_bot(api_key, secret, email, live_trading):
         st.warning("Not enough data to simulate trades.")
         return
 
-    # Inject demo trade signals
-    df["action"] = ""
-    df.loc[10, "action"] = "Buy"
-    df.loc[30, "action"] = "Buy"
-    df.loc[50, "action"] = "Buy"
-    df.loc[20, "action"] = "Sell"
-    df.loc[60, "action"] = "Sell"
-    df.loc[100, "action"] = "Sell"
+  # Inject demo trade signals
+df["action"] = ""
+df.loc[10, "action"] = "Buy"
+df.loc[30, "action"] = "Buy"
+df.loc[50, "action"] = "Buy"
+df.loc[20, "action"] = "Sell"
+df.loc[60, "action"] = "Sell"
+df.loc[100, "action"] = "Sell"
 
-    # Show chart with price only (no markers inline)
-    st.subheader("📈 Henry's Demo Price Chart")
-    st.line_chart(df.set_index("step")[["close"]])
+# ✅ Fix: ensure 'step' column exists
+df["step"] = range(len(df))
+
+# Show chart with price only (no markers inline)
+st.subheader("📈 Henry's Demo Price Chart")
+st.line_chart(df.set_index("step")[["close"]])
+
 
     # Trade summary
     st.subheader("📜 Trade Timeline")
