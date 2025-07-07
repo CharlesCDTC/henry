@@ -23,11 +23,12 @@ class HenryTradingEnv(Env):
         self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(13,), dtype=np.float32)
 
-    def reset(self):
-        self.current_step = 0
-        self.crypto_held = 0.0
-        self.usd_balance = self.starting_balance
-        return self._next_observation()
+def reset(self, *, seed=None, options=None):
+    super().reset(seed=seed)
+    self.current_step = 0
+    self.crypto_held = 0.0
+    self.usd_balance = self.starting_balance
+    return self._next_observation(), {}
 
     def _next_observation(self):
         row = self.df.iloc[self.current_step]
