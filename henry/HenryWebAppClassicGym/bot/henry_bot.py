@@ -144,6 +144,7 @@ st.subheader("📈 Henry's Demo Price Chart")
 st.line_chart(df.set_index("step")[["close"]])
 
 
+
     # Trade summary
     st.subheader("📜 Trade Timeline")
     for _, row in df[df["action"] != ""].iterrows():
