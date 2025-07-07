@@ -21,7 +21,7 @@ Respond only in JSON format like:
 }
 """
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
         content = response.choices[0].message.content.strip()
@@ -39,7 +39,7 @@ Strategy: {strategy}
 """
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content.strip()
@@ -58,9 +58,10 @@ Give a 2-sentence performance summary.
 """
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content.strip()
     except:
         return f"Trades: {buys} buys, {sells} sells. Final return: {pnl:.2f}%"
+
