@@ -131,16 +131,16 @@ def run_henry_bot(api_key, secret, email, live_trading):
     model.learn(total_timesteps=1000)
 
     obs = env.reset()
-    done = False
     portfolio = []
+    max_steps = len(df) - 2  # run safely through all steps
 
-    while not done:
+    for _ in range(max_steps):
         action, _ = model.predict(obs)
         obs, reward, done, _ = env.step(action)
         step = env.envs[0].current_step
 
         if step >= len(df):
-            break  # prevent indexing beyond dataframe
+            break
 
         price = df.iloc[step]['close']
         value = env.envs[0].usd_balance + env.envs[0].crypto_held * price
@@ -160,3 +160,4 @@ def run_henry_bot(api_key, secret, email, live_trading):
         st.success(f"✅ Run complete. Final portfolio value: ${portfolio[-1]:.2f}")
     else:
         st.warning("❗ Not enough steps executed to display a chart.")
+
