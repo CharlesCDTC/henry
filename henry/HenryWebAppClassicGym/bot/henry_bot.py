@@ -197,4 +197,43 @@ else:
     st.warning("⚠️ Henry didn't execute enough trades to chart results.")
 
 
+import pandas as pd
+import numpy as np
+import streamlit as st
+import altair as alt
+
+# Fake data
+steps = 100
+price = np.cumsum(np.random.randn(steps)) + 20000
+df = pd.DataFrame({
+    "step": range(steps),
+    "price": price,
+    "action": ["Buy" if i in [10, 30, 50] else "Sell" if i in [20, 60, 80] else "" for i in range(steps)]
+})
+
+# Base line chart
+base = alt.Chart(df).mark_line(color='black').encode(
+    x='step',
+    y='price'
+)
+
+# Buy markers
+buy_points = alt.Chart(df[df.action == "Buy"]).mark_point(
+    shape='triangle-up', color='green', size=100
+).encode(
+    x='step',
+    y='price',
+    tooltip=['step', 'price']
+)
+
+# Sell markers
+sell_points = alt.Chart(df[df.action == "Sell"]).mark_point(
+    shape='triangle-down', color='red', size=100
+).encode(
+    x='step',
+    y='price',
+    tooltip=['step', 'price']
+)
+
+st.altair_chart(base + buy_points + sell_points, use_container_width=True)
 
