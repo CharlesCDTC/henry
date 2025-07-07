@@ -1,67 +1,56 @@
-import openai
-import streamlit as st
-
-openai.api_key = st.secrets["openai"]["api_key"]
-client = openai.OpenAI(api_key=openai.api_key)
+# bot/henry_gpt.py
 
 def get_gpt_suggestion():
-    try:
-        prompt = """
-You are a crypto trading assistant.
-Suggest:
-1. A crypto symbol (like BTC/USD or ETH/USD)
-2. A timeframe (e.g. 5m, 15m)
-3. A strategy (e.g. trend-follow, breakout, scalp)
-
-Respond only in JSON format like:
-{
-  "symbol": "BTC/USD",
-  "timeframe": "15m",
-  "strategy": "scalp"
-}
-"""
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        content = response.choices[0].message.content.strip()
-        return eval(content)
-    except Exception as e:
-        st.warning(f"GPT fallback: {e}")
-        return {"symbol": "BTC/USD", "timeframe": "5m", "strategy": "trend-follow"}
+    """
+    Returns a fallback trading configuration suggestion.
+    This replaces GPT logic with simple built-in rules.
+    """
+    return {
+        "symbol": "BTC/USD",
+        "timeframe": "15m",
+        "strategy": "momentum"
+    }
 
 def explain_strategy(symbol, timeframe, strategy):
-    prompt = f"""
-Write a 3-line summary explaining the trading strategy for:
-Symbol: {symbol}
-Timeframe: {timeframe}
-Strategy: {strategy}
-"""
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
+    """
+    Returns a human-readable description of the chosen strategy.
+    """
+    if strategy == "momentum":
+        return (
+            f"📊 Strategy: Momentum\n"
+            f"Trades {symbol} on the {timeframe} timeframe using RSI and MACD indicators. "
+            f"The bot buys into strength and exits when momentum weakens."
         )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return f"{strategy} strategy for {symbol} ({timeframe})"
+    elif strategy == "scalp":
+        return (
+            f"📊 Strategy: Scalp\n"
+            f"Scalps quick price movements for {symbol} on the {timeframe} chart. "
+            f"Designed for small, fast trades with tight risk control."
+        )
+    elif strategy == "breakout":
+        return (
+            f"📊 Strategy: Breakout\n"
+            f"Monitors {symbol} on the {timeframe} chart and enters trades when the price "
+            f"breaks above or below established support/resistance zones."
+        )
+    else:
+        return (
+            f"📊 Strategy: {strategy.title()}\n"
+            f"Trading strategy for {symbol} on the {timeframe} chart."
+        )
 
 def summarize_results(actions, pnl):
+    """
+    Summarizes trading actions and profit/loss.
+    """
     buys = sum(1 for a in actions if a == "Buy")
     sells = sum(1 for a in actions if a == "Sell")
+    
+    return (
+        f"📈 Summary:\n"
+        f"Total Buy Trades: {buys}\n"
+        f"Total Sell Trades: {sells}\n"
+        f"Final Portfolio Change: {pnl:.2f}%"
+    )
 
-    prompt = f"""
-Henry made {buys} buy trades and {sells} sell trades.
-Net portfolio change: {pnl:.2f}%.
-
-Give a 2-sentence performance summary.
-"""
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content.strip()
-    except:
-        return f"Trades: {buys} buys, {sells} sells. Final return: {pnl:.2f}%"
 
