@@ -1,0 +1,9 @@
+
+streamlit==1.35.0
+pandas
+numpy
+ta
+ccxt
+matplotlib
+gymnasium
+stable-baselines3
