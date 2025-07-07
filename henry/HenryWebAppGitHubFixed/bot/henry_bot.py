@@ -7,7 +7,6 @@ from ta.trend import MACD, EMAIndicator
 from ta.volatility import BollingerBands
 from stable_baselines3 import PPO
 from gymnasium.vector import SyncVectorEnv
-env = SyncVectorEnv([lambda: HenryTradingEnv(df)])
 import smtplib
 from email.message import EmailMessage
 import streamlit as st
@@ -96,7 +95,7 @@ def run_henry_bot(api_key, secret, email, live_trading):
         st.error(f"Data fetch error: {e}")
         return
 
-    env = DummyVecEnv([lambda: HenryTradingEnv(df)])
+    env = SyncVectorEnv([lambda: HenryTradingEnv(df)])
     model = PPO("MlpPolicy", env, verbose=0)
     model.learn(total_timesteps=1000)
     obs = env.reset()
