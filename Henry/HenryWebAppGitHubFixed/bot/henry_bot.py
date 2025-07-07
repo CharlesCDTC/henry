@@ -54,7 +54,7 @@ class HenryTradingEnv(Env):
         return obs, reward, done, {}
 
 def fetch_data(api_key, secret, symbol="BTC/USD", timeframe="5m", limit=100):
-    exchange = ccxt.coinbasepro({
+    exchange = ccxt.coinbase({
         'apiKey': api_key,
         'secret': secret,
         'enableRateLimit': True,
