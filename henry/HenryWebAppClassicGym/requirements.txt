@@ -1,7 +1,0 @@
-gymnasium==0.29.1
-stable-baselines3
-ccxt
-ta
-pandas
-numpy
-streamlit
