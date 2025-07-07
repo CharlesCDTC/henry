@@ -115,6 +115,7 @@ def run_henry_bot(api_key, secret, email, live_trading):
         df["bb_low"] = bb.bollinger_lband()
         return df.dropna().reset_index(drop=True)
 
+    # Load data
     try:
         if api_key == "demo" or secret == "demo":
             df = fetch_demo_data()
@@ -129,11 +130,13 @@ def run_henry_bot(api_key, secret, email, live_trading):
         st.warning("Not enough data to simulate trades.")
         return
 
-    # ✅ Ensure 'action' column is initialized correctly
-    df["action"] = ""
-    df["action"] = df["action"].fillna("").astype(str)
+    # Drop NaNs and ensure proper types
+    df = df.dropna(subset=["step", "close"]).copy()
+    df["step"] = df["step"].astype(int)
+    df["close"] = df["close"].astype(float)
+    df["action"] = df.get("action", "").fillna("").astype(str)
 
-    # ✅ Add demo BUY/SELL markers
+    # Inject demo trades
     df.loc[10, "action"] = "Buy"
     df.loc[30, "action"] = "Buy"
     df.loc[50, "action"] = "Buy"
@@ -141,14 +144,13 @@ def run_henry_bot(api_key, secret, email, live_trading):
     df.loc[60, "action"] = "Sell"
     df.loc[100, "action"] = "Sell"
 
-    # ✅ Altair price line
-    base = alt.Chart(df).mark_line(color='black').encode(
+    # Build chart
+    base = alt.Chart(df).mark_line().encode(
         x=alt.X("step:Q", title="Step"),
         y=alt.Y("close:Q", title="Price (USD)"),
         tooltip=["step", "close", "action"]
     )
 
-    # ✅ Buy markers
     buy_points = alt.Chart(df[df["action"] == "Buy"]).mark_point(
         shape="triangle-up", color="green", size=100
     ).encode(
@@ -156,7 +158,6 @@ def run_henry_bot(api_key, secret, email, live_trading):
         y="close:Q"
     )
 
-    # ✅ Sell markers
     sell_points = alt.Chart(df[df["action"] == "Sell"]).mark_point(
         shape="triangle-down", color="red", size=100
     ).encode(
@@ -164,11 +165,11 @@ def run_henry_bot(api_key, secret, email, live_trading):
         y="close:Q"
     )
 
-    # ✅ Combine and display chart
+    # Display chart
     st.subheader("📈 Henry's Demo Trade Chart")
     st.altair_chart(base + buy_points + sell_points, use_container_width=True)
 
-    # ✅ Show trade timeline with emojis
+    # Trade log
     st.subheader("📜 Trade Timeline")
     for _, row in df[df["action"] != ""].iterrows():
         if row["action"] == "Buy":
@@ -177,6 +178,7 @@ def run_henry_bot(api_key, secret, email, live_trading):
             st.write(f"Step {row['step']}: 🔴 SELL at ${row['close']:.2f}")
 
     st.success("✅ Demo complete. Trade markers and chart rendered.")
+
 
 
 
