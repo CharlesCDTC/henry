@@ -111,12 +111,15 @@ def run_henry_bot(symbol, timeframe, live_trading=False, api_key=None, secret=No
         action, _ = model.predict(obs)
         obs, reward, done, _, _ = env.step(action)
 
-        step = env.env.current_step
+        step = env.unwrapped.current_step
         if step >= len(df):
             break
 
         df.loc[step, "action"] = "Buy" if action == 1 else "Sell" if action == 2 else ""
-        portfolio.append(env.env.usd_balance + env.env.crypto_held * df.loc[step, "close"])
+        usd = env.unwrapped.usd_balance
+        held = env.unwrapped.crypto_held
+        price = df.loc[step, "close"]
+        portfolio.append(usd + held * price)
 
         if live_trading and action in [1, 2]:
             execute_trade(action, symbol, 0.001, api_key, secret)
@@ -136,3 +139,4 @@ def run_henry_bot(symbol, timeframe, live_trading=False, api_key=None, secret=No
 
     fpath = save_results(df, portfolio, symbol, timeframe)
     st.success(f"Results saved: {fpath}")
+
