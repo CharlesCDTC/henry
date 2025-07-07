@@ -5,8 +5,8 @@ import ccxt
 from ta.momentum import RSIIndicator
 from ta.trend import MACD
 from stable_baselines3 import PPO
-from gym import Env, spaces
-from gym.wrappers import TimeLimit
+from gymnasium import Env, spaces
+from gymnasium.wrappers import TimeLimit
 
 
 def fetch_demo_data():
@@ -126,20 +126,17 @@ def run_henry_bot(api_key, secret, email, live_trading):
 
     df["step"] = range(len(df))
 
-    # Chart
+    # Charts
     st.subheader("📈 Portfolio Value Over Time")
     st.line_chart(portfolio)
 
     st.subheader("📊 Price Chart with Actions")
     st.line_chart(df.set_index("step")[["close"]])
 
-    # Trade log
     st.subheader("📜 Trade Timeline")
     for _, row in df[df["action"] != ""].iterrows():
-        if row["action"] == "Buy":
-            st.markdown(f"🟢 **BUY** at step {row['step']} — ${row['close']:.2f}")
-        elif row["action"] == "Sell":
-            st.markdown(f"🔴 **SELL** at step {row['step']} — ${row['close']:.2f}")
+        emoji = "🟢" if row["action"] == "Buy" else "🔴"
+        st.markdown(f"{emoji} **{row['action'].upper()}** at step {row['step']} — ${row['close']:.2f}")
 
     st.success("✅ Simulation complete.")
 
