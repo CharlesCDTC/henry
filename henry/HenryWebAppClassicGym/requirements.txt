@@ -1,0 +1,8 @@
+streamlit
+ccxt
+pandas
+matplotlib
+numpy
+ta
+gym==0.21.0
+stable-baselines3[extra]
