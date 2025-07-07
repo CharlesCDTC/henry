@@ -7,37 +7,8 @@ from ta.trend import MACD
 from stable_baselines3 import PPO
 from gymnasium import Env, spaces
 from gymnasium.wrappers import TimeLimit
-
-
-def fetch_demo_data():
-    np.random.seed(42)
-    steps = 150
-    prices = np.cumsum(np.random.randn(steps) * 20 + 20000)
-    df = pd.DataFrame({
-        "timestamp": pd.date_range(end=pd.Timestamp.now(), periods=steps, freq="5min"),
-        "open": prices,
-        "high": prices + np.random.rand(steps) * 10,
-        "low": prices - np.random.rand(steps) * 10,
-        "close": prices + np.random.randn(steps),
-        "volume": np.random.rand(steps) * 100
-    })
-    df["rsi"] = RSIIndicator(close=df["close"], window=14).rsi()
-    macd = MACD(close=df["close"])
-    df["macd"] = macd.macd()
-    df["macd_signal"] = macd.macd_signal()
-    return df.dropna().reset_index(drop=True)
-
-
-def fetch_real_data(symbol="BTC/USD", timeframe="5m", limit=150):
-    exchange = ccxt.coinbase()
-    bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
-    df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-    df["rsi"] = RSIIndicator(close=df["close"], window=14).rsi()
-    macd = MACD(close=df["close"])
-    df["macd"] = macd.macd()
-    df["macd_signal"] = macd.macd_signal()
-    return df.dropna().reset_index(drop=True)
+import os
+from datetime import datetime
 
 
 class HenryEnv(Env):
@@ -48,7 +19,7 @@ class HenryEnv(Env):
         self.crypto_held = 0.0
         self.usd_balance = 1000.0
         self.starting_balance = 1000.0
-        self.action_space = spaces.Discrete(3)  # 0 = hold, 1 = buy, 2 = sell
+        self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(6,), dtype=np.float32)
 
     def _next_observation(self):
@@ -83,32 +54,63 @@ class HenryEnv(Env):
         return self._next_observation(), {}
 
 
-def run_henry_bot(api_key, secret, email, live_trading):
-    st.write("✅ Henry bot is starting...")
+def fetch_data(symbol="BTC/USD", timeframe="5m", limit=200):
+    exchange = ccxt.coinbase()
+    bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+    df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+    df["rsi"] = RSIIndicator(close=df["close"], window=14).rsi()
+    macd = MACD(close=df["close"])
+    df["macd"] = macd.macd()
+    df["macd_signal"] = macd.macd_signal()
+    return df.dropna().reset_index(drop=True)
 
-    # Load data
+
+def execute_trade(action, symbol="BTC/USD", amount=0.001, api_key=None, secret=None):
     try:
-        if api_key == "demo" or secret == "demo":
-            df = fetch_demo_data()
-            st.info("📊 Running on demo data")
-        else:
-            df = fetch_real_data()
-            st.success("📡 Fetched real Coinbase data")
+        exchange = ccxt.coinbase({
+            'apiKey': api_key,
+            'secret': secret
+        })
+
+        if action == 1:
+            order = exchange.create_market_buy_order(symbol, amount)
+            return f"✅ LIVE BUY: {order}"
+        elif action == 2:
+            order = exchange.create_market_sell_order(symbol, amount)
+            return f"✅ LIVE SELL: {order}"
     except Exception as e:
-        st.error(f"❌ Data fetch failed: {e}")
+        return f"❌ Trade error: {e}"
+
+
+def save_results(df, portfolio, symbol, timeframe):
+    result = pd.DataFrame({
+        "timestamp": df["timestamp"],
+        "close": df["close"],
+        "action": df["action"],
+        "portfolio": portfolio
+    })
+    fname = f"henry_results_{symbol.replace('/', '')}_{timeframe}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    result.to_csv(fname, index=False)
+    return fname
+
+
+def run_henry_bot(symbol, timeframe, live_trading=False, api_key=None, secret=None):
+    st.write(f"📡 Loading data for {symbol} - {timeframe}...")
+    try:
+        df = fetch_data(symbol, timeframe)
+        if len(df) < 30:
+            st.error("Not enough data.")
+            return
+    except Exception as e:
+        st.error(f"Fetch error: {e}")
         return
 
-    if len(df) < 30:
-        st.warning("Not enough data to run PPO model.")
-        return
-
-    # Train PPO model
     env = HenryEnv(df)
     env = TimeLimit(env, max_episode_steps=100)
     model = PPO("MlpPolicy", env, verbose=0)
     model.learn(total_timesteps=1000)
 
-    # Simulate trading
     obs, _ = env.reset()
     df["action"] = ""
     portfolio = []
@@ -121,12 +123,16 @@ def run_henry_bot(api_key, secret, email, live_trading):
             break
         df.loc[step, "action"] = "Buy" if action == 1 else "Sell" if action == 2 else ""
         portfolio.append(env.usd_balance + env.crypto_held * df.loc[step, "close"])
+
+        if live_trading and action in [1, 2]:
+            trade_result = execute_trade(action, symbol, 0.001, api_key, secret)
+            st.info(trade_result)
+
         if done:
             break
 
     df["step"] = range(len(df))
 
-    # Charts
     st.subheader("📈 Portfolio Value Over Time")
     st.line_chart(portfolio)
 
@@ -136,10 +142,10 @@ def run_henry_bot(api_key, secret, email, live_trading):
     st.subheader("📜 Trade Timeline")
     for _, row in df[df["action"] != ""].iterrows():
         emoji = "🟢" if row["action"] == "Buy" else "🔴"
-        st.markdown(f"{emoji} **{row['action'].upper()}** at step {row['step']} — ${row['close']:.2f}")
+        st.markdown(f"{emoji} **{row['action']}** at step {row['step']} — ${row['close']:.2f}")
 
-    st.success("✅ Simulation complete.")
-
+    file_path = save_results(df, portfolio, symbol, timeframe)
+    st.success(f"✅ Results saved: {file_path}")
 
 
 
