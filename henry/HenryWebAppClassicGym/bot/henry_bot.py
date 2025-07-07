@@ -127,7 +127,7 @@ def run_henry_bot(api_key, secret, email, live_trading):
         st.warning("Not enough data to simulate trades.")
         return
 
-  # Inject demo trade signals
+# Inject demo trade signals
 df["action"] = ""
 df.loc[10, "action"] = "Buy"
 df.loc[30, "action"] = "Buy"
