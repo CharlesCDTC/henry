@@ -111,12 +111,12 @@ def run_henry_bot(symbol, timeframe, live_trading=False, api_key=None, secret=No
         action, _ = model.predict(obs)
         obs, reward, done, _, _ = env.step(action)
 
-        step = env._env.current_step
+        step = env.env.current_step
         if step >= len(df):
             break
 
         df.loc[step, "action"] = "Buy" if action == 1 else "Sell" if action == 2 else ""
-        portfolio.append(env._env.usd_balance + env._env.crypto_held * df.loc[step, "close"])
+        portfolio.append(env.env.usd_balance + env.env.crypto_held * df.loc[step, "close"])
 
         if live_trading and action in [1, 2]:
             execute_trade(action, symbol, 0.001, api_key, secret)
@@ -131,7 +131,7 @@ def run_henry_bot(symbol, timeframe, live_trading=False, api_key=None, secret=No
     st.line_chart(df.set_index("step")[["close"]])
 
     pnl = ((portfolio[-1] - 1000) / 1000) * 100 if portfolio else 0
-    st.subheader("📋 GPT Summary of Trades")
+    st.subheader("📋 Summary of Trades")
     st.info(summarize_results(df["action"].tolist(), pnl))
 
     fpath = save_results(df, portfolio, symbol, timeframe)
